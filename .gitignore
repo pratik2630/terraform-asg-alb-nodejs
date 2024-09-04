@@ -1,0 +1,7 @@
+# Terraform files
+*.tfstate
+*.tfstate.*
+*.log
+
+# Local .terraform directories
+**/.terraform/
