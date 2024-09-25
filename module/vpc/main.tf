@@ -1,151 +1,80 @@
-#CREATE VPC
+# create vpc
 resource "aws_vpc" "terraform_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block = var.vpc_cidr_block
   tags = {
-    Name = "terraform-project-vpc"
+    Name = var.vpc_name
   }
-
 }
 
-#CREATE SUBNET
-
-#---> PUBLIC SUBNET 1
-resource "aws_subnet" "public-subnet-1" {
+# subnets - public-subnet-1 , public-subnet-2 , private-subnet-1,private-subnet-2
+resource "aws_subnet" "subnet" {
+  count = length(var.subnet_names)
   vpc_id                  = aws_vpc.terraform_vpc.id
-  cidr_block              = "10.0.0.0/20"
-  availability_zone       = "ap-south-1a"
+  cidr_block              = var.subnet_cidr[count.index]
+  availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
   tags = {
-    Name = "terraform-project-public-subnet-1"
+    Name = var.subnet_names[count.index]
   }
 }
 
-#--->PUBLIC SUBNET 2
-resource "aws_subnet" "public-subnet-2" {
-  vpc_id                  = aws_vpc.terraform_vpc.id
-  cidr_block              = "10.0.16.0/20"
-  availability_zone       = "ap-south-1b"
-  map_public_ip_on_launch = true
-  tags = {
-    Name = "terraform-project-public-subnet-2"
-  }
-}
-
-#--->PRIVATE SUBNET 1
-resource "aws_subnet" "private-subnet-1" {
-  vpc_id                  = aws_vpc.terraform_vpc.id
-  cidr_block              = "10.0.128.0/20"
-  availability_zone       = "ap-south-1a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "terraform-project-private-subnet-1"
-  }
-}
-
-#--->PRIVATE SUBNET 2
-resource "aws_subnet" "private-subnet-2" {
-  vpc_id                  = aws_vpc.terraform_vpc.id
-  cidr_block              = "10.0.144.0/20"
-  availability_zone       = "ap-south-1b"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "terraform-project-private-subnet-2"
-  }
-}
-
-#--->CREATING INTERNET GATEWAY FOR PUBLIC SUBNET
+# Internet gateway 
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.terraform_vpc.id
-
   tags = {
-    Name = "terraform-project-igw"
+    Name = var.igw_name
   }
 }
 
-#--->CREATE ROUTE TABLE FOR INTERNET GATEWAY
+#route table for internet gateway
 resource "aws_route_table" "rt" {
   vpc_id = aws_vpc.terraform_vpc.id
-
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.gw.id
   }
-
   tags = {
-    Name = "terraform-project-rt"
+    Name = var.igw_rt_name
   }
 }
 
-#--->ASSOCIATE PUBLIC SUBNET 1 WITH INTERNET GATEWAY ROUTE TABLE
+#associate public subnet 1 and 2 with internet gateway route table
 resource "aws_route_table_association" "rta1" {
-  subnet_id      = aws_subnet.public-subnet-1.id
+  count = 2
+  subnet_id      = aws_subnet.var.subnet_names[count.index].id
   route_table_id = aws_route_table.rt.id
 }
 
-#--->ASSOCIATE PUBLIC SUBNET 2 WITH INTERNET GATEWAY ROUTE TABLE
-resource "aws_route_table_association" "rta2" {
-  subnet_id      = aws_subnet.public-subnet-2.id
-  route_table_id = aws_route_table.rt.id
-}
-
-#---> Creating Elastic ip
+# creating elastic ip
 resource "aws_eip" "ngw" {
   domain   = "vpc"
 }
 
-#--->CREATING NAT GATEWAY
-
+# creating nat gateway
 resource "aws_nat_gateway" "ngw" {
-
   subnet_id =  aws_subnet.public-subnet-1
   allocation_id = aws_eip.ngw.allocation_id
   tags = {
-    Name = "terraform-project-ngw"
+    Name = var.ngw_name
   }
   depends_on = [ aws_internet_gateway.gw ]
 }
 
-#--->CREATE ROUTE TABLE FOR NAT GATEWAY
+#create route table for nat gateway
 resource "aws_route_table" "rt2" {
   vpc_id = aws_vpc.terraform_vpc.id
-
   route {
     cidr_block = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.ngw.id
   }
-
   tags = {
-    Name = "nat-gateway-terraform-project-rt"
+    Name = var.ngw_rt_name
   }
 }
 
-#--->ASSOCIATE PRIVATE SUBNET 1 WITH NAT GATEWAY ROUTE TABLE
-resource "aws_route_table_association" "rta3" {
-  subnet_id      = aws_subnet.private-subnet-1.id
+#associate private subnet 1 with nat gateway route table
+resource "aws_route_table_association" "rta2" {
+  count = 2
+  subnet_id      = aws_subnet.var.subnet_names[count.index + 2].id
   route_table_id = aws_route_table.rt2.id
 }
-
-#--->ASSOCIATE PRIVATE SUBNET 2 WITH NAT GATEWAY ROUTE TABLE
-resource "aws_route_table_association" "rta4" {
-  subnet_id      = aws_subnet.private-subnet-2.id
-  route_table_id = aws_route_table.rt2.id
-}
-
-
-# output "vpc_id" {
-#   value = aws_vpc.terraform_vpc.id
-# }
-# output "pub_sub_1_id" {
-#   value = aws_subnet.public-subnet-1.id
-# }
-# output "pub_sub_2_id" {
-#   value = aws_subnet.public-subnet-2
-# }
-# output "priv_sub_1_id" {
-#   value = aws_subnet.private-subnet-1
-# }
-# output "priv_sub_2_id" {
-#   value = aws_subnet.private-subnet-2
-# }

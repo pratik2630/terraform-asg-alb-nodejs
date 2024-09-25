@@ -1,14 +1,13 @@
 
-#CREATE LAUNCH TEMPLATE
+#create launch template
 resource "aws_launch_template" "launch_template" {
-  name            = "terraform-launch-template"
-  default_version = "1"
+  name            = var.launch_template_name
+  default_version = var.template_version
   description     = "launch template for nodejs server with port 3000"
-  image_id        = "ami-02b49a24cfb95941c"
-  instance_type   = "t2.micro"
+  image_id        = var.template_ami
+  instance_type   = var.template_instance_type
   key_name        = var.key_name
-  user_data       = base64encode(file("G:/Terraform/ALB-terraform/module/launch-template/userdata.sh"))
-
+  user_data       = base64encode(file("./userdata.sh"))
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [var.asg_id]
@@ -17,18 +16,8 @@ resource "aws_launch_template" "launch_template" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "bastion host"
+      Name = var.template_instance_name
     }
   }
-}
-
-variable "asg_id" {
-  description = "asg instance sg"
-  type        = string
-}
-
-variable "key_name" {
-  description = "key name of ec2"
-  type        = string
 }
 
